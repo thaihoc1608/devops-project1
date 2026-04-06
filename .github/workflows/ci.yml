@@ -1,0 +1,33 @@
+# tạo tên
+name: React App CI
+
+# kích hoat workflow khi có sự kiện push hoặc pull request vào nhánh main
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# định nghĩa job
+jobs:
+  build-and-test:
+    runs-on: unbuntu-latest #chạy trên máy ảo của linux github
+
+    steps:
+      #B1: Tải kho lưu trữ từ máy ảo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      #B2: Thiết lập Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18" # sử dụng phiên bản node 18
+      #B3: Cài đặt dependencies(thư viện cần thiết)
+      - name: Install dependencies
+        run: npm ci
+      #B4: Chạy bộ kiểm thử tự động (test)
+      - name: Run automated tests
+        run: npm test -- --watchAll=false
+      #B5: Build ứng dụng ra file tĩnh
+      - name: Build Web App
+        run: npm run build
