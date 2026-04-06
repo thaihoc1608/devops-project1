@@ -11,7 +11,7 @@ on:
 # định nghĩa job
 jobs:
   build-and-test:
-    runs-on: unbuntu-latest #chạy trên máy ảo của linux github
+    runs-on: ubuntu-latest #chạy trên máy ảo của linux github
 
     steps:
       #B1: Tải kho lưu trữ từ máy ảo
