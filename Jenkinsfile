@@ -8,7 +8,7 @@ pipeline {
     }
 
     environment {
-        DOCKER_IMAGE = 'React-App'
+        DOCKER_IMAGE = 'devops-web-app'
     }
 
     stages {
