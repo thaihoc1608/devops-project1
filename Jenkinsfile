@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    // Tắt checkout tự động của Declarative Pipeline
+    // để tránh lỗi safe.directory trước khi kịp fix
+    options {
+        skipDefaultCheckout(true)
+    }
+
     environment {
         DOCKER_IMAGE = 'React-App'
     }
