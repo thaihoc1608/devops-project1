@@ -8,6 +8,8 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                // Fix lỗi git safe.directory trong Jenkins Docker container
+                sh 'git config --global --add safe.directory "*"'
                 // Keo code tu Github ve
                 checkout scm 
             }
