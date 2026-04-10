@@ -55,9 +55,10 @@ pipeline {
                 echo "Đợi 10 giây để web khởi động..."
                 sleep 10
                 echo "Tiến hành gửi request kiểm tra nhà ${env.TARGET_ENV}..."
-                // FIX #2: Dùng localhost thay vì host.docker.internal (tương thích Linux)
-                // Thêm --retry để tránh false-negative lúc container mới bật
-                sh "curl -f --retry 3 --retry-delay 3 http://localhost:${env.TARGET_PORT} || exit 1"
+                // Jenkins chạy trong Docker container trên Windows
+                // Phải dùng host.docker.internal để reach port trên host machine
+                // localhost bên trong Jenkins container ≠ localhost của host
+                sh "curl -f --retry 5 --retry-delay 5 --retry-connrefused http://host.docker.internal:${env.TARGET_PORT} || exit 1"
             }
         }
 
