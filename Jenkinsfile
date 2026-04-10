@@ -16,15 +16,19 @@ pipeline {
         stage('Khởi tạo Biến Môi trường') {
             steps {
                 script {
-                    // Di chuyển toàn bộ logic tính toán vào trong khối script này
-                    def blueExists = sh(script: "docker ps | grep ${IMAGE_NAME}-blue || true", returnStdout: true).trim()
-                    
-                    // Gắn 'env.' ở trước để các bước sau đều gọi được biến này
-                    env.ACTIVE_ENV = blueExists ? "blue" : "green"
+                    // FIX #1: Kiểm tra chuỗi rỗng đúng cách trong Groovy
+                    // docker ps chỉ in ra container ĐANG CHẠY
+                    def blueExists = sh(script: "docker ps --filter name=${IMAGE_NAME}-blue --format '{{.Names}}'", returnStdout: true).trim()
+
+                    // Groovy: chuỗi rỗng "" là falsy khi dùng toBoolean() or .isEmpty()
+                    env.ACTIVE_ENV = blueExists.isEmpty() ? "green" : "blue"
                     env.TARGET_ENV = env.ACTIVE_ENV == "blue" ? "green" : "blue"
+
+                    // Mapping cố định: blue=3001, green=3002
                     env.TARGET_PORT = env.TARGET_ENV == "blue" ? "3001" : "3002"
-                    
-                    echo "🎯 Phát hiện nhà đang chạy: ${env.ACTIVE_ENV}"
+                    env.ACTIVE_PORT = env.ACTIVE_ENV == "blue" ? "3001" : "3002"
+
+                    echo "🎯 Phát hiện nhà đang chạy: ${env.ACTIVE_ENV} (cổng ${env.ACTIVE_PORT})"
                     echo "🚀 Sẽ deploy code mới vào nhà: ${env.TARGET_ENV} ở cổng ${env.TARGET_PORT}"
                 }
             }
@@ -48,26 +52,44 @@ pipeline {
 
         stage('Smoke Test (Kiểm định chất lượng)') {
             steps {
-                echo "Đợi 5 giây để web khởi động..."
-                sleep 5
+                echo "Đợi 10 giây để web khởi động..."
+                sleep 10
                 echo "Tiến hành gửi request kiểm tra nhà ${env.TARGET_ENV}..."
-                sh "curl -f http://host.docker.internal:${env.TARGET_PORT} || exit 1"
+                // FIX #2: Dùng localhost thay vì host.docker.internal (tương thích Linux)
+                // Thêm --retry để tránh false-negative lúc container mới bật
+                sh "curl -f --retry 3 --retry-delay 3 http://localhost:${env.TARGET_PORT} || exit 1"
             }
         }
 
         stage('Switch Traffic (Bẻ lái giao thông)') {
             steps {
                 echo "✅ Kiểm định thành công! Đang bẻ lái Nginx sang nhà ${env.TARGET_ENV}..."
+                // FIX #3: Dùng heredoc thay vì echo một dòng dài để tránh lỗi escape ký tự
                 sh """
-                echo 'events { worker_connections 1024; } http { upstream frontend { server host.docker.internal:${env.TARGET_PORT}; } server { listen 80; location / { proxy_pass http://frontend; } } }' > /tmp/nginx.conf
-                
+                cat <<'EOF' > /tmp/nginx.conf
+events {
+    worker_connections 1024;
+}
+http {
+    upstream frontend {
+        server host.docker.internal:${env.TARGET_PORT};
+    }
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://frontend;
+        }
+    }
+}
+EOF
+
                 docker cp /tmp/nginx.conf router-nginx:/etc/nginx/nginx.conf
                 docker exec router-nginx nginx -s reload
                 """
             }
         }
     }
-    
+
     // NÚT ROLLBACK TỰ ĐỘNG
     post {
         failure {
