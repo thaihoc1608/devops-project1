@@ -84,7 +84,10 @@ http {
 }
 EOF
 
-                docker cp /tmp/nginx.conf router-nginx:/etc/nginx/nginx.conf
+                # Bơm trực tiếp nội dung từ file /tmp/nginx.conf vào file cấu hình của Nginx
+                cat /tmp/nginx.conf | docker exec -i router-nginx sh -c 'cat > /etc/nginx/nginx.conf'
+                
+                # Reload lại Nginx để nhận cấu hình mới
                 docker exec router-nginx nginx -s reload
                 """
             }
